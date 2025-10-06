@@ -13,9 +13,6 @@
 #include "arch/windows/net.h"
 #include "arch/windows/socks.h"
 
-// Define PSUTIL_DEBUG
-int PSUTIL_DEBUG = 0;
-
 // Define psutil_debug for Cygwin
 void
 psutil_debug(const char* format, ...) {
