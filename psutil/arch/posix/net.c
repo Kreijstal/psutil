@@ -41,6 +41,10 @@
 #if defined(PSUTIL_AIX)
     #include <netdb.h>
 #endif
+#if defined(PSUTIL_CYGWIN)
+    #include <netdb.h>
+    #include <netinet/in.h>
+#endif
 
 #include "../../arch/all/init.h"
 

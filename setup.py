@@ -466,12 +466,15 @@ elif CYGWIN:
         min = int(m.group('minor'))
         return '0x0%s' % ((maj * 100) + min)
 
-    macros.append(("_WIN32_WINNT", get_winver()))
-    # This indicates to Cygwin's headers that we are using Windows sockets and
-    # not BSD sockets for this code, and so not to declare types like fd_set or
-    # functions like select().  Indeed, the only socket-related code in this
-    # module is Windows-specific.
-    macros.append(('__USE_W32_SOCKETS', None))
+    # Create separate macros for Cygwin extension to avoid polluting POSIX extension
+    cygwin_macros = macros + [
+        ("_WIN32_WINNT", get_winver()),
+        # This indicates to Cygwin's headers that we are using Windows sockets and
+        # not BSD sockets for this code, and so not to declare types like fd_set or
+        # functions like select().  Indeed, the only socket-related code in this
+        # module is Windows-specific.
+        ('__USE_W32_SOCKETS', None),
+    ]
 
     # The _psutil_cygwin extension takes pieces from the _psutil_windows
     # extension, but does not need the full module
@@ -484,7 +487,7 @@ elif CYGWIN:
             'psutil/arch/windows/proc_utils.c',
             'psutil/arch/windows/socks.c'],
         include_dirs=['psutil'],
-        define_macros=macros,
+        define_macros=cygwin_macros,
         libraries=['iphlpapi', 'ntdll'],
         # fmt: off
         # python 2.7 compatibility requires no comma
