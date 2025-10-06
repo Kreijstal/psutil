@@ -483,6 +483,7 @@ elif CYGWIN:
             'psutil/arch/windows/net.c',
             'psutil/arch/windows/proc_utils.c',
             'psutil/arch/windows/socks.c'],
+        include_dirs=['psutil'],
         define_macros=macros,
         libraries=['iphlpapi', 'ntdll'],
         # fmt: off
