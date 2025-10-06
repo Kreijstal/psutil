@@ -129,6 +129,7 @@ psutil_convert_ipaddr(struct sockaddr *addr, int family) {
  * Return NICs information a-la ifconfig as a list of tuples.
  * TODO: on Solaris we won't get any MAC address.
  */
+#ifndef PSUTIL_CYGWIN
 PyObject*
 psutil_net_if_addrs(PyObject* self, PyObject* args) {
     struct ifaddrs *ifaddr, *ifa;
@@ -217,6 +218,7 @@ error:
     Py_XDECREF(py_ptp);
     return NULL;
 }
+#endif
 
 
 /*
