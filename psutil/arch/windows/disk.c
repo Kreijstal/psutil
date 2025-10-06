@@ -384,8 +384,14 @@ psutil_QueryDosDevice(PyObject *self, PyObject *args) {
         TCHAR szDeviceName[3] = {d, TEXT(':'), TEXT('\0')};
         TCHAR szTarget[512] = {0};
         if (QueryDosDevice(szDeviceName, szTarget, 511) != 0) {
+#ifdef PSUTIL_CYGWIN
+            // On Cygwin, TCHAR is char, so use strcmp
+            if (strcmp(lpDevicePath, szTarget) == 0) {
+                snprintf(szBuff, _countof(szBuff), "%c:", d);
+#else
             if (_tcscmp(lpDevicePath, szTarget) == 0) {
                 _stprintf_s(szBuff, _countof(szBuff), TEXT("%c:"), d);
+#endif
                 return Py_BuildValue("s", szBuff);
             }
         }

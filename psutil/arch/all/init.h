@@ -49,6 +49,9 @@ extern int PSUTIL_CONN_NONE;
 #endif
 
 // Print a debug message on stderr.
+#ifdef psutil_debug
+#undef psutil_debug
+#endif
 #define psutil_debug(...) do { \
     if (! PSUTIL_DEBUG) \
         break; \
