@@ -11,36 +11,115 @@
 #include <windows.h>
 #include <wchar.h>
 #include <ws2tcpip.h>
+#include <iphlpapi.h>
+#include <netioapi.h>
 
 #include "../../arch/all/init.h"
+#include "../../_psutil_common.h"
+
+// Cygwin may not have these newer types, so we define them if necessary
+#ifndef TCP_TABLE_OWNER_PID_ALL
+typedef enum _TCP_TABLE_CLASS {
+    TCP_TABLE_BASIC_LISTENER,
+    TCP_TABLE_BASIC_CONNECTIONS,
+    TCP_TABLE_BASIC_ALL,
+    TCP_TABLE_OWNER_PID_LISTENER,
+    TCP_TABLE_OWNER_PID_CONNECTIONS,
+    TCP_TABLE_OWNER_PID_ALL,
+    TCP_TABLE_OWNER_MODULE_LISTENER,
+    TCP_TABLE_OWNER_MODULE_CONNECTIONS,
+    TCP_TABLE_OWNER_MODULE_ALL
+} TCP_TABLE_CLASS;
+
+typedef enum _UDP_TABLE_CLASS {
+    UDP_TABLE_BASIC,
+    UDP_TABLE_OWNER_PID,
+    UDP_TABLE_OWNER_MODULE
+} UDP_TABLE_CLASS;
+
+typedef struct _MIB_TCPROW_OWNER_PID {
+    DWORD dwState;
+    DWORD dwLocalAddr;
+    DWORD dwLocalPort;
+    DWORD dwRemoteAddr;
+    DWORD dwRemotePort;
+    DWORD dwOwningPid;
+} MIB_TCPROW_OWNER_PID, *PMIB_TCPROW_OWNER_PID;
+
+typedef struct _MIB_TCPTABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_TCPROW_OWNER_PID table[ANY_SIZE];
+} MIB_TCPTABLE_OWNER_PID, *PMIB_TCPTABLE_OWNER_PID;
+
+typedef struct _MIB_UDPROW_OWNER_PID {
+    DWORD dwLocalAddr;
+    DWORD dwLocalPort;
+    DWORD dwOwningPid;
+} MIB_UDPROW_OWNER_PID, *PMIB_UDPROW_OWNER_PID;
+
+typedef struct _MIB_UDPTABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_UDPROW_OWNER_PID table[ANY_SIZE];
+} MIB_UDPTABLE_OWNER_PID, *PMIB_UDPTABLE_OWNER_PID;
+
+typedef struct _MIB_TCP6ROW_OWNER_PID {
+    UCHAR ucLocalAddr[16];
+    DWORD dwLocalScopeId;
+    DWORD dwLocalPort;
+    UCHAR ucRemoteAddr[16];
+    DWORD dwRemoteScopeId;
+    DWORD dwRemotePort;
+    DWORD dwState;
+    DWORD dwOwningPid;
+} MIB_TCP6ROW_OWNER_PID, *PMIB_TCP6ROW_OWNER_PID;
+
+typedef struct _MIB_TCP6TABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_TCP6ROW_OWNER_PID table[ANY_SIZE];
+} MIB_TCP6TABLE_OWNER_PID, *PMIB_TCP6TABLE_OWNER_PID;
+
+typedef struct _MIB_UDP6ROW_OWNER_PID {
+    UCHAR ucLocalAddr[16];
+    DWORD dwLocalScopeId;
+    DWORD dwLocalPort;
+    DWORD dwOwningPid;
+} MIB_UDP6ROW_OWNER_PID, *PMIB_UDP6ROW_OWNER_PID;
+
+typedef struct _MIB_UDP6TABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_UDP6ROW_OWNER_PID table[ANY_SIZE];
+} MIB_UDP6TABLE_OWNER_PID, *PMIB_UDP6TABLE_OWNER_PID;
+
+#endif
 
 
 static PIP_ADAPTER_ADDRESSES
 psutil_get_nic_addresses(void) {
     ULONG bufferLength = 0;
-    PIP_ADAPTER_ADDRESSES buffer;
+    PIP_ADAPTER_ADDRESSES buffer = NULL;
+    DWORD ret;
 
-    if (GetAdaptersAddresses(AF_UNSPEC, 0, NULL, NULL, &bufferLength)
-            != ERROR_BUFFER_OVERFLOW)
-    {
+    // First call to get the buffer size needed
+    ret = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, NULL, &bufferLength);
+    if (ret != ERROR_BUFFER_OVERFLOW) {
         PyErr_SetString(PyExc_RuntimeError,
-                        "GetAdaptersAddresses() syscall failed.");
+                        "GetAdaptersAddresses() failed to get buffer size.");
         return NULL;
     }
 
-    buffer = malloc(bufferLength);
+    buffer = (PIP_ADAPTER_ADDRESSES)malloc(bufferLength);
     if (buffer == NULL) {
         PyErr_NoMemory();
         return NULL;
     }
     memset(buffer, 0, bufferLength);
 
-    if (GetAdaptersAddresses(AF_UNSPEC, 0, NULL, buffer, &bufferLength)
-            != ERROR_SUCCESS)
-    {
+    // Second call to get the actual adapter information
+    ret = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, buffer, &bufferLength);
+    if (ret != ERROR_SUCCESS) {
         free(buffer);
         PyErr_SetString(PyExc_RuntimeError,
-                        "GetAdaptersAddresses() syscall failed.");
+                        "GetAdaptersAddresses() failed to get adapter info.");
         return NULL;
     }
 
@@ -54,7 +133,7 @@ psutil_get_nic_addresses(void) {
 PyObject *
 psutil_net_io_counters(PyObject *self, PyObject *args) {
     DWORD dwRetVal = 0;
-    MIB_IF_ROW2 *pIfRow = NULL;
+    MIB_IFROW *pIfRow = NULL;
     PIP_ADAPTER_ADDRESSES pAddresses = NULL;
     PIP_ADAPTER_ADDRESSES pCurrAddresses = NULL;
     PyObject *py_retdict = PyDict_New();
@@ -72,31 +151,31 @@ psutil_net_io_counters(PyObject *self, PyObject *args) {
         py_nic_name = NULL;
         py_nic_info = NULL;
 
-        pIfRow = (MIB_IF_ROW2 *) malloc(sizeof(MIB_IF_ROW2));
+        pIfRow = (MIB_IFROW *) malloc(sizeof(MIB_IFROW));
         if (pIfRow == NULL) {
             PyErr_NoMemory();
             goto error;
         }
 
-        SecureZeroMemory((PVOID)pIfRow, sizeof(MIB_IF_ROW2));
-        pIfRow->InterfaceIndex = pCurrAddresses->IfIndex;
-        dwRetVal = GetIfEntry2(pIfRow);
+        memset(pIfRow, 0, sizeof(MIB_IFROW));
+        pIfRow->dwIndex = pCurrAddresses->IfIndex;
+        dwRetVal = GetIfEntry(pIfRow);
         if (dwRetVal != NO_ERROR) {
             PyErr_SetString(PyExc_RuntimeError,
-                            "GetIfEntry() or GetIfEntry2() syscalls failed.");
+                            "GetIfEntry() syscall failed.");
             goto error;
         }
 
         py_nic_info = Py_BuildValue(
             "(KKKKKKKK)",
-            pIfRow->OutOctets,
-            pIfRow->InOctets,
-            (pIfRow->OutUcastPkts + pIfRow->OutNUcastPkts),
-            (pIfRow->InUcastPkts + pIfRow->InNUcastPkts),
-            pIfRow->InErrors,
-            pIfRow->OutErrors,
-            pIfRow->InDiscards,
-            pIfRow->OutDiscards);
+            pIfRow->dwOutOctets,
+            pIfRow->dwInOctets,
+            (pIfRow->dwOutUcastPkts + pIfRow->dwOutNUcastPkts),
+            (pIfRow->dwInUcastPkts + pIfRow->dwInNUcastPkts),
+            pIfRow->dwInErrors,
+            pIfRow->dwOutErrors,
+            pIfRow->dwInDiscards,
+            pIfRow->dwOutDiscards);
         if (!py_nic_info)
             goto error;
 
@@ -181,7 +260,7 @@ psutil_net_if_addrs(PyObject *self, PyObject *args) {
         if (pCurrAddresses->PhysicalAddressLength != 0) {
             ptr = buff_macaddr;
             *ptr = '\0';
-            for (i = 0; i < (int) pCurrAddresses->PhysicalAddressLength; i++) {
+            for (i = 0; i < (unsigned int)pCurrAddresses->PhysicalAddressLength; i++) {
                 if (i == (pCurrAddresses->PhysicalAddressLength - 1)) {
                     sprintf_s(ptr, _countof(buff_macaddr), "%.2X\n",
                               (int)pCurrAddresses->PhysicalAddress[i]);
@@ -318,7 +397,7 @@ psutil_net_if_stats(PyObject *self, PyObject *args) {
     int i;
     DWORD dwSize = 0;
     DWORD dwRetVal = 0;
-    MIB_IFTABLE *pIfTable;
+    MIB_IFTABLE *pIfTable = NULL;
     MIB_IFROW *pIfRow;
     PIP_ADAPTER_ADDRESSES pAddresses = NULL;
     PIP_ADAPTER_ADDRESSES pCurrAddresses = NULL;
@@ -368,8 +447,10 @@ psutil_net_if_stats(PyObject *self, PyObject *args) {
         ifname_found = 0;
         pCurrAddresses = pAddresses;
         while (pCurrAddresses) {
-            sprintf_s(descr, MAX_PATH, "%wS", pCurrAddresses->Description);
-            if (lstrcmp(descr, pIfRow->bDescr) == 0) {
+            // Convert wide string to multibyte
+            WideCharToMultiByte(CP_ACP, 0, pCurrAddresses->Description, -1,
+                                descr, MAX_PATH, NULL, NULL);
+            if (lstrcmpA(descr, (LPCSTR)pIfRow->bDescr) == 0) {
                 py_nic_name = PyUnicode_FromWideChar(
                     pCurrAddresses->FriendlyName,
                     wcslen(pCurrAddresses->FriendlyName));
@@ -387,9 +468,10 @@ psutil_net_if_stats(PyObject *self, PyObject *args) {
             continue;
         }
 
-        // is up?
-        if ((pIfRow->dwOperStatus == MIB_IF_OPER_STATUS_CONNECTED ||
-                pIfRow->dwOperStatus == MIB_IF_OPER_STATUS_OPERATIONAL) &&
+        // is up? For MIB_IFROW, we use dwOperStatus
+        // Note: MIB_IF_OPER_STATUS_CONNECTED and MIB_IF_OPER_STATUS_OPERATIONAL
+        // may not be defined, so we'll use their values (1 and 7)
+        if ((pIfRow->dwOperStatus == 1 || pIfRow->dwOperStatus == 7) &&
                 pIfRow->dwAdminStatus == 1 ) {
             py_is_up = Py_True;
         }

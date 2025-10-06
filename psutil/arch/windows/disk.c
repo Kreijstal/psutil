@@ -9,6 +9,7 @@
 #include <tchar.h>
 
 #include "../../arch/all/init.h"
+#include "../../_psutil_common.h"
 
 
 #ifndef _ARRAYSIZE
@@ -63,7 +64,11 @@ psutil_disk_usage(PyObject *self, PyObject *args) {
     PyMem_Free(path);
 
     if (retval == 0)
+#ifdef PSUTIL_CYGWIN
+        return PyErr_SetFromErrnoWithFilenameObject(PyExc_OSError, py_path);
+#else
         return PyErr_SetExcFromWindowsErrWithFilenameObject(PyExc_OSError, 0, py_path);
+#endif
 
     return Py_BuildValue("(LL)", total.QuadPart, free.QuadPart);
 }
@@ -142,7 +147,11 @@ psutil_disk_io_counters(PyObject *self, PyObject *args) {
             // XXX: we can also bump into ERROR_MORE_DATA in which case
             // (quoting doc) we're supposed to retry with a bigger buffer
             // and specify  a new "starting point", whatever it means.
+#ifdef PSUTIL_CYGWIN
+            PyErr_SetFromErrno(PyExc_OSError);
+#else
             PyErr_SetFromWindowsErr(0);
+#endif
             goto error;
         }
 
@@ -222,7 +231,11 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
     Py_END_ALLOW_THREADS
 
     if (num_bytes == 0) {
+#ifdef PSUTIL_CYGWIN
+        PyErr_SetFromErrno(PyExc_OSError);
+#else
         PyErr_SetFromWindowsErr(0);
+#endif
         goto error;
     }
 
@@ -270,7 +283,11 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
         }
         else {
             if (pflags & FILE_READ_ONLY_VOLUME)
+    #ifdef PSUTIL_CYGWIN
+                strncat(opts, "ro", sizeof(opts) - strlen(opts) - 1);
+    #else
                 strcat_s(opts, _countof(opts), "ro");
+    #endif
             else
                 strcat_s(opts, _countof(opts), "rw");
             if (pflags & FILE_VOLUME_IS_COMPRESSED)
@@ -367,8 +384,14 @@ psutil_QueryDosDevice(PyObject *self, PyObject *args) {
         TCHAR szDeviceName[3] = {d, TEXT(':'), TEXT('\0')};
         TCHAR szTarget[512] = {0};
         if (QueryDosDevice(szDeviceName, szTarget, 511) != 0) {
+#ifdef PSUTIL_CYGWIN
+            // On Cygwin, TCHAR is char, so use strcmp
+            if (strcmp(lpDevicePath, szTarget) == 0) {
+                snprintf(szBuff, _countof(szBuff), "%c:", d);
+#else
             if (_tcscmp(lpDevicePath, szTarget) == 0) {
                 _stprintf_s(szBuff, _countof(szBuff), TEXT("%c:"), d);
+#endif
                 return Py_BuildValue("s", szBuff);
             }
         }

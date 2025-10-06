@@ -59,6 +59,7 @@ sys.path.insert(0, os.path.join(HERE, "psutil"))
 
 from _common import AIX  # noqa: E402
 from _common import BSD  # noqa: E402
+from _common import CYGWIN  # noqa: E402
 from _common import FREEBSD  # noqa: E402
 from _common import LINUX  # noqa: E402
 from _common import MACOS  # noqa: E402
@@ -446,6 +447,50 @@ elif AIX:
         ],
         libraries=['perfstat'],
         define_macros=macros,
+        # fmt: off
+        # python 2.7 compatibility requires no comma
+        **py_limited_api
+        # fmt: on
+    )
+
+elif CYGWIN:
+    macros.append(("PSUTIL_CYGWIN", 1))
+
+    # sys.getwindowsversion() is not available in Cygwin's Python
+    winver_re = re.compile(r'(CYGWIN|MSYS)_NT-(?P<major>\d+)\.(?P<minor>\d+)')
+
+    def get_winver():
+        verstr = os.uname()[0]
+        m = winver_re.search(verstr)
+        maj = int(m.group('major'))
+        min = int(m.group('minor'))
+        return '0x0%s' % ((maj * 100) + min)
+
+    # Create separate macros for Cygwin extension to avoid polluting POSIX extension
+    cygwin_macros = macros + [
+        ("_WIN32_WINNT", get_winver()),
+        # This indicates to Cygwin's headers that we are using Windows sockets and
+        # not BSD sockets for this code, and so not to declare types like fd_set or
+        # functions like select().  Indeed, the only socket-related code in this
+        # module is Windows-specific.
+        ('__USE_W32_SOCKETS', None),
+        # Define a macro to identify Cygwin compilation
+        ('PSUTIL_CYGWIN', 1),
+    ]
+
+    # The _psutil_cygwin extension takes pieces from the _psutil_windows
+    # extension, but does not need the full module
+    ext = Extension(
+        'psutil._psutil_cygwin',
+        sources=sources + [
+            'psutil/_psutil_cygwin.c',
+            'psutil/arch/windows/disk.c',
+            'psutil/arch/windows/net.c',
+            'psutil/arch/windows/proc_utils.c',
+            'psutil/arch/windows/socks.c'],
+        include_dirs=['psutil'],
+        define_macros=cygwin_macros,
+        libraries=['iphlpapi', 'ntdll'],
         # fmt: off
         # python 2.7 compatibility requires no comma
         **py_limited_api

@@ -41,6 +41,10 @@
 #if defined(PSUTIL_AIX)
     #include <netdb.h>
 #endif
+#if defined(PSUTIL_CYGWIN)
+    #include <netdb.h>
+    #include <netinet/in.h>
+#endif
 
 #include "../../arch/all/init.h"
 
@@ -125,6 +129,7 @@ psutil_convert_ipaddr(struct sockaddr *addr, int family) {
  * Return NICs information a-la ifconfig as a list of tuples.
  * TODO: on Solaris we won't get any MAC address.
  */
+#if !defined(PSUTIL_CYGWIN)
 PyObject*
 psutil_net_if_addrs(PyObject* self, PyObject* args) {
     struct ifaddrs *ifaddr, *ifa;
@@ -213,6 +218,7 @@ error:
     Py_XDECREF(py_ptp);
     return NULL;
 }
+#endif  // !defined(PSUTIL_CYGWIN)
 
 
 /*

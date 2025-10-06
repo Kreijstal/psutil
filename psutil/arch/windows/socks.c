@@ -11,7 +11,116 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 
+// Define missing types for Cygwin
+#ifndef MIB_TCP_STATE_DELETE_TCB
+#define MIB_TCP_STATE_DELETE_TCB 12
+#endif
+
+#ifndef MIB_TCP_STATE_LISTEN
+#define MIB_TCP_STATE_LISTEN 2
+#endif
+
+// Define TCP_TABLE_CLASS and UDP_TABLE_CLASS as DWORD for Cygwin
+typedef DWORD TCP_TABLE_CLASS;
+typedef DWORD UDP_TABLE_CLASS;
+
+#ifndef ANY_SIZE
+#define ANY_SIZE 1
+#endif
+
+// Define the actual table structures if they're missing
+#ifndef MIB_TCPROW_OWNER_PID
+typedef struct _MIB_TCPROW_OWNER_PID {
+    DWORD dwState;
+    DWORD dwLocalAddr;
+    DWORD dwLocalPort;
+    DWORD dwRemoteAddr;
+    DWORD dwRemotePort;
+    DWORD dwOwningPid;
+} MIB_TCPROW_OWNER_PID, *PMIB_TCPROW_OWNER_PID;
+#endif
+
+#ifndef MIB_TCPTABLE_OWNER_PID
+typedef struct _MIB_TCPTABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_TCPROW_OWNER_PID table[ANY_SIZE];
+} MIB_TCPTABLE_OWNER_PID, *PMIB_TCPTABLE_OWNER_PID;
+#endif
+
+#ifndef MIB_UDPROW_OWNER_PID
+typedef struct _MIB_UDPROW_OWNER_PID {
+    DWORD dwLocalAddr;
+    DWORD dwLocalPort;
+    DWORD dwOwningPid;
+} MIB_UDPROW_OWNER_PID, *PMIB_UDPROW_OWNER_PID;
+#endif
+
+#ifndef MIB_UDPTABLE_OWNER_PID
+typedef struct _MIB_UDPTABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_UDPROW_OWNER_PID table[ANY_SIZE];
+} MIB_UDPTABLE_OWNER_PID, *PMIB_UDPTABLE_OWNER_PID;
+#endif
+
+#ifndef MIB_TCP6ROW_OWNER_PID
+typedef struct _MIB_TCP6ROW_OWNER_PID {
+    UCHAR ucLocalAddr[16];
+    DWORD dwLocalScopeId;
+    DWORD dwLocalPort;
+    UCHAR ucRemoteAddr[16];
+    DWORD dwRemoteScopeId;
+    DWORD dwRemotePort;
+    DWORD dwState;
+    DWORD dwOwningPid;
+} MIB_TCP6ROW_OWNER_PID, *PMIB_TCP6ROW_OWNER_PID;
+#endif
+
+#ifndef MIB_TCP6TABLE_OWNER_PID
+typedef struct _MIB_TCP6TABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_TCP6ROW_OWNER_PID table[ANY_SIZE];
+} MIB_TCP6TABLE_OWNER_PID, *PMIB_TCP6TABLE_OWNER_PID;
+#endif
+
+#ifndef MIB_UDP6ROW_OWNER_PID
+typedef struct _MIB_UDP6ROW_OWNER_PID {
+    UCHAR ucLocalAddr[16];
+    DWORD dwLocalScopeId;
+    DWORD dwLocalPort;
+    DWORD dwOwningPid;
+} MIB_UDP6ROW_OWNER_PID, *PMIB_UDP6ROW_OWNER_PID;
+#endif
+
+#ifndef MIB_UDP6TABLE_OWNER_PID
+typedef struct _MIB_UDP6TABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_UDP6ROW_OWNER_PID table[ANY_SIZE];
+} MIB_UDP6TABLE_OWNER_PID, *PMIB_UDP6TABLE_OWNER_PID;
+#endif
+
 #include "../../arch/all/init.h"
+
+// Declare psutil_pid_is_running which is defined in proc_utils.c
+extern int psutil_pid_is_running(DWORD pid);
+
+// Forward declarations for Windows networking functions that might be missing in Cygwin
+DWORD WINAPI GetExtendedTcpTable(
+    PVOID pTcpTable,
+    PDWORD pdwSize,
+    BOOL bOrder,
+    ULONG ulAf,
+    TCP_TABLE_CLASS TableClass,
+    ULONG Reserved
+);
+
+DWORD WINAPI GetExtendedUdpTable(
+    PVOID pUdpTable,
+    PDWORD pdwSize,
+    BOOL bOrder,
+    ULONG ulAf,
+    UDP_TABLE_CLASS TableClass,
+    ULONG Reserved
+);
 
 
 #define BYTESWAP_USHORT(x) ((((USHORT)(x) << 8) | ((USHORT)(x) >> 8)) & 0xffff)
@@ -29,9 +138,16 @@ static PVOID __GetExtendedTcpTable(ULONG family) {
     DWORD err;
     PVOID table;
     ULONG size = 0;
-    TCP_TABLE_CLASS class = TCP_TABLE_OWNER_PID_ALL;
+    DWORD class = 5; // TCP_TABLE_OWNER_PID_ALL
+    DWORD ret;
 
-    GetExtendedTcpTable(NULL, &size, FALSE, family, class, 0);
+    // First call to get the size
+    ret = GetExtendedTcpTable(NULL, &size, FALSE, family, class, 0);
+    if (ret != ERROR_INSUFFICIENT_BUFFER) {
+        PyErr_SetString(PyExc_RuntimeError, "GetExtendedTcpTable failed to get size");
+        return NULL;
+    }
+    
     // reserve 25% more space to be sure
     size = size + (size / 2 / 2);
 
@@ -60,9 +176,16 @@ static PVOID __GetExtendedUdpTable(ULONG family) {
     DWORD err;
     PVOID table;
     ULONG size = 0;
-    UDP_TABLE_CLASS class = UDP_TABLE_OWNER_PID;
+    DWORD class = 1; // UDP_TABLE_OWNER_PID
+    DWORD ret;
 
-    GetExtendedUdpTable(NULL, &size, FALSE, family, class, 0);
+    // First call to get the size
+    ret = GetExtendedUdpTable(NULL, &size, FALSE, family, class, 0);
+    if (ret != ERROR_INSUFFICIENT_BUFFER) {
+        PyErr_SetString(PyExc_RuntimeError, "GetExtendedUdpTable failed to get size");
+        return NULL;
+    }
+    
     // reserve 25% more space
     size = size + (size / 2 / 2);
 
@@ -134,7 +257,7 @@ psutil_net_connections(PyObject *self, PyObject *args) {
         return NULL;
     }
 
-    if (pid != -1) {
+    if (pid != (DWORD)-1) {
         pid_return = psutil_pid_is_running(pid);
         if (pid_return == 0) {
             psutil_conn_decref_objs();
@@ -165,9 +288,9 @@ psutil_net_connections(PyObject *self, PyObject *args) {
         table = __GetExtendedTcpTable(AF_INET);
         if (table == NULL)
             goto error;
-        tcp4Table = table;
+        tcp4Table = (PMIB_TCPTABLE_OWNER_PID)table;
         for (i = 0; i < tcp4Table->dwNumEntries; i++) {
-            if (pid != -1) {
+            if (pid != (DWORD)-1) {
                 if (tcp4Table->table[i].dwOwningPid != pid) {
                     continue;
                 }
@@ -237,8 +360,7 @@ psutil_net_connections(PyObject *self, PyObject *args) {
 
     // TCP IPv6
     if ((PySequence_Contains(py_af_filter, _AF_INET6) == 1) &&
-            (PySequence_Contains(py_type_filter, _SOCK_STREAM) == 1) &&
-            (RtlIpv6AddressToStringA != NULL))
+            (PySequence_Contains(py_type_filter, _SOCK_STREAM) == 1))
     {
         table = NULL;
         py_conn_tuple = NULL;
@@ -248,10 +370,10 @@ psutil_net_connections(PyObject *self, PyObject *args) {
         table = __GetExtendedTcpTable(AF_INET6);
         if (table == NULL)
             goto error;
-        tcp6Table = table;
+        tcp6Table = (PMIB_TCP6TABLE_OWNER_PID)table;
         for (i = 0; i < tcp6Table->dwNumEntries; i++)
         {
-            if (pid != -1) {
+            if (pid != (DWORD)-1) {
                 if (tcp6Table->table[i].dwOwningPid != pid) {
                     continue;
                 }
@@ -331,10 +453,10 @@ psutil_net_connections(PyObject *self, PyObject *args) {
         table = __GetExtendedUdpTable(AF_INET);
         if (table == NULL)
             goto error;
-        udp4Table = table;
+        udp4Table = (PMIB_UDPTABLE_OWNER_PID)table;
         for (i = 0; i < udp4Table->dwNumEntries; i++)
         {
-            if (pid != -1) {
+            if (pid != (DWORD)-1) {
                 if (udp4Table->table[i].dwOwningPid != pid) {
                     continue;
                 }
@@ -382,8 +504,7 @@ psutil_net_connections(PyObject *self, PyObject *args) {
     // UDP IPv6
 
     if ((PySequence_Contains(py_af_filter, _AF_INET6) == 1) &&
-            (PySequence_Contains(py_type_filter, _SOCK_DGRAM) == 1) &&
-            (RtlIpv6AddressToStringA != NULL))
+            (PySequence_Contains(py_type_filter, _SOCK_DGRAM) == 1))
     {
         table = NULL;
         py_conn_tuple = NULL;
@@ -392,9 +513,9 @@ psutil_net_connections(PyObject *self, PyObject *args) {
         table = __GetExtendedUdpTable(AF_INET6);
         if (table == NULL)
             goto error;
-        udp6Table = table;
+        udp6Table = (PMIB_UDP6TABLE_OWNER_PID)table;
         for (i = 0; i < udp6Table->dwNumEntries; i++) {
-            if (pid != -1) {
+            if (pid != (DWORD)-1) {
                 if (udp6Table->table[i].dwOwningPid != pid) {
                     continue;
                 }
