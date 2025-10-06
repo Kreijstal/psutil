@@ -29,19 +29,6 @@ psutil_debug(const char* format, ...) {
     va_end(args);
 }
 
-// Define psutil_debug for Cygwin
-void
-psutil_debug(const char* format, ...) {
-    if (! PSUTIL_DEBUG)
-        return;
-    va_list args;
-    va_start(args, format);
-    fprintf(stderr, "psutil-debug [%s:%d]> ", __FILE__, __LINE__);
-    vfprintf(stderr, format, args);
-    fprintf(stderr, "\n");
-    va_end(args);
-}
-
 
 /*
  * stubs for functions used at the module-level by _pswindows but not needed
