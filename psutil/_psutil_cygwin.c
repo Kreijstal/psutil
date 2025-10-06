@@ -29,6 +29,12 @@ NOT_IMPLEMENTED_STUB(pids)
 NOT_IMPLEMENTED_STUB(pid_exists)
 NOT_IMPLEMENTED_STUB(ppid_map)
 
+static PyObject *
+psutil_set_testing(PyObject *self, PyObject *args) {
+    // This is a stub implementation
+    Py_RETURN_NONE;
+}
+
 
 /*
  * Convert the Cygwin PID of a process to/from its corresponding Windows PID
