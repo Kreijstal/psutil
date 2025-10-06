@@ -471,7 +471,9 @@ class TestSystemAPIs(PsutilTestCase):
         for part in psutil.disk_partitions(all=False):
             usage = psutil.disk_usage(part.mountpoint)
             try:
-                sys_total, sys_used, sys_free, sys_percent = df(part.device)
+                # Use mountpoint instead of device to avoid issues with device
+                # aliases like /dev/root or special filesystems
+                sys_total, sys_used, sys_free, sys_percent = df(part.mountpoint)
             except RuntimeError as err:
                 # see:
                 # https://travis-ci.org/giampaolo/psutil/jobs/138338464

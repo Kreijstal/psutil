@@ -1370,11 +1370,9 @@ class TestRootFsDeviceFinder(PsutilTestCase):
         ) as m:
             part = psutil.disk_partitions()[0]
             assert m.called
-            if not GITHUB_ACTIONS:
-                assert part.device != "/dev/root"
-                assert part.device == RootFsDeviceFinder().find()
-            else:
-                assert part.device == "/dev/root"
+            # On GitHub Actions, /dev/root is resolved to the actual device
+            assert part.device != "/dev/root"
+            assert part.device == RootFsDeviceFinder().find()
 
 
 # =====================================================================
