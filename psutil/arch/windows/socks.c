@@ -16,6 +16,10 @@
 #define MIB_TCP_STATE_DELETE_TCB 12
 #endif
 
+#ifndef MIB_TCP_STATE_LISTEN
+#define MIB_TCP_STATE_LISTEN 2
+#endif
+
 // Define TCP_TABLE_CLASS and UDP_TABLE_CLASS as DWORD for Cygwin
 typedef DWORD TCP_TABLE_CLASS;
 typedef DWORD UDP_TABLE_CLASS;
@@ -249,8 +253,8 @@ psutil_net_connections(PyObject *self, PyObject *args) {
         return NULL;
     }
 
-    if (pid != -1) {
-        pid_return = psutil_pid_is_running ? psutil_pid_is_running(pid) : 1;
+    if (pid != (DWORD)-1) {
+        pid_return = (psutil_pid_is_running != NULL) ? psutil_pid_is_running(pid) : 1;
         if (pid_return == 0) {
             psutil_conn_decref_objs();
             return NoSuchProcess("psutil_pid_is_running");
@@ -282,7 +286,7 @@ psutil_net_connections(PyObject *self, PyObject *args) {
             goto error;
         tcp4Table = (PMIB_TCPTABLE_OWNER_PID)table;
         for (i = 0; i < tcp4Table->dwNumEntries; i++) {
-            if (pid != -1) {
+            if (pid != (DWORD)-1) {
                 if (tcp4Table->table[i].dwOwningPid != pid) {
                     continue;
                 }
@@ -366,7 +370,7 @@ psutil_net_connections(PyObject *self, PyObject *args) {
         tcp6Table = (PMIB_TCP6TABLE_OWNER_PID)table;
         for (i = 0; i < tcp6Table->dwNumEntries; i++)
         {
-            if (pid != -1) {
+            if (pid != (DWORD)-1) {
                 if (tcp6Table->table[i].dwOwningPid != pid) {
                     continue;
                 }
@@ -449,7 +453,7 @@ psutil_net_connections(PyObject *self, PyObject *args) {
         udp4Table = (PMIB_UDPTABLE_OWNER_PID)table;
         for (i = 0; i < udp4Table->dwNumEntries; i++)
         {
-            if (pid != -1) {
+            if (pid != (DWORD)-1) {
                 if (udp4Table->table[i].dwOwningPid != pid) {
                     continue;
                 }
@@ -509,7 +513,7 @@ psutil_net_connections(PyObject *self, PyObject *args) {
             goto error;
         udp6Table = (PMIB_UDP6TABLE_OWNER_PID)table;
         for (i = 0; i < udp6Table->dwNumEntries; i++) {
-            if (pid != -1) {
+            if (pid != (DWORD)-1) {
                 if (udp6Table->table[i].dwOwningPid != pid) {
                     continue;
                 }
