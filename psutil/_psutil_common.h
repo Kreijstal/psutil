@@ -79,9 +79,15 @@ static const int PSUTIL_CONN_NONE = 128;
 #define _stprintf_s sprintf_s
 #endif
 
-int sprintf_s(char *str, size_t n, const char *format, ...);
-int strcat_s(char *dest, size_t n, const char *src);
-int strcpy_s(char *dest, size_t n, const char *src);
+// On Cygwin, use standard C functions
+#include <stdio.h>
+#include <string.h>
+#define sprintf_s(str, n, format, ...) snprintf(str, n, format, ##__VA_ARGS__)
+#define strcat_s(dest, n, src) strncat(dest, src, n - strlen(dest) - 1)
+#define strcpy_s(dest, n, src) strncpy(dest, src, n - 1); dest[n - 1] = '\0'
+#define _countof(x) (sizeof(x)/sizeof(x[0]))
+#define _tcscmp wcscmp
+#define _stprintf_s swprintf
 
 #endif // PSUTIL_CYGWIN
 
