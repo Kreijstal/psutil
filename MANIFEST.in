@@ -118,10 +118,12 @@ include psutil/arch/sunos/v10/ifaddrs.c
 include psutil/arch/sunos/v10/ifaddrs.h
 include psutil/arch/windows/cpu.c
 include psutil/arch/windows/disk.c
+include psutil/arch/windows/disk.h
 include psutil/arch/windows/init.c
 include psutil/arch/windows/init.h
 include psutil/arch/windows/mem.c
 include psutil/arch/windows/net.c
+include psutil/arch/windows/net.h
 include psutil/arch/windows/ntextapi.h
 include psutil/arch/windows/proc.c
 include psutil/arch/windows/proc_handles.c
@@ -131,6 +133,7 @@ include psutil/arch/windows/security.c
 include psutil/arch/windows/sensors.c
 include psutil/arch/windows/services.c
 include psutil/arch/windows/socks.c
+include psutil/arch/windows/socks.h
 include psutil/arch/windows/sys.c
 include psutil/arch/windows/wmi.c
 include psutil/tests/README.rst
