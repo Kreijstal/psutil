@@ -93,6 +93,7 @@ psutil currently supports the following platforms:
 - **FreeBSD, OpenBSD**, **NetBSD**
 - **Sun Solaris**
 - **AIX**
+- **Cygwin** (experimental)
 
 Supported Python versions are cPython 3.6+ and `PyPy <https://pypy.org/>`__.
 Latest psutil version supporting Python 2.7 is
