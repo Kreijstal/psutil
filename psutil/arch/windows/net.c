@@ -17,6 +17,81 @@
 #include "../../arch/all/init.h"
 #include "../../_psutil_common.h"
 
+// Cygwin may not have these newer types, so we define them if necessary
+#ifndef TCP_TABLE_OWNER_PID_ALL
+typedef enum _TCP_TABLE_CLASS {
+    TCP_TABLE_BASIC_LISTENER,
+    TCP_TABLE_BASIC_CONNECTIONS,
+    TCP_TABLE_BASIC_ALL,
+    TCP_TABLE_OWNER_PID_LISTENER,
+    TCP_TABLE_OWNER_PID_CONNECTIONS,
+    TCP_TABLE_OWNER_PID_ALL,
+    TCP_TABLE_OWNER_MODULE_LISTENER,
+    TCP_TABLE_OWNER_MODULE_CONNECTIONS,
+    TCP_TABLE_OWNER_MODULE_ALL
+} TCP_TABLE_CLASS;
+
+typedef enum _UDP_TABLE_CLASS {
+    UDP_TABLE_BASIC,
+    UDP_TABLE_OWNER_PID,
+    UDP_TABLE_OWNER_MODULE
+} UDP_TABLE_CLASS;
+
+typedef struct _MIB_TCPROW_OWNER_PID {
+    DWORD dwState;
+    DWORD dwLocalAddr;
+    DWORD dwLocalPort;
+    DWORD dwRemoteAddr;
+    DWORD dwRemotePort;
+    DWORD dwOwningPid;
+} MIB_TCPROW_OWNER_PID, *PMIB_TCPROW_OWNER_PID;
+
+typedef struct _MIB_TCPTABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_TCPROW_OWNER_PID table[ANY_SIZE];
+} MIB_TCPTABLE_OWNER_PID, *PMIB_TCPTABLE_OWNER_PID;
+
+typedef struct _MIB_UDPROW_OWNER_PID {
+    DWORD dwLocalAddr;
+    DWORD dwLocalPort;
+    DWORD dwOwningPid;
+} MIB_UDPROW_OWNER_PID, *PMIB_UDPROW_OWNER_PID;
+
+typedef struct _MIB_UDPTABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_UDPROW_OWNER_PID table[ANY_SIZE];
+} MIB_UDPTABLE_OWNER_PID, *PMIB_UDPTABLE_OWNER_PID;
+
+typedef struct _MIB_TCP6ROW_OWNER_PID {
+    UCHAR ucLocalAddr[16];
+    DWORD dwLocalScopeId;
+    DWORD dwLocalPort;
+    UCHAR ucRemoteAddr[16];
+    DWORD dwRemoteScopeId;
+    DWORD dwRemotePort;
+    DWORD dwState;
+    DWORD dwOwningPid;
+} MIB_TCP6ROW_OWNER_PID, *PMIB_TCP6ROW_OWNER_PID;
+
+typedef struct _MIB_TCP6TABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_TCP6ROW_OWNER_PID table[ANY_SIZE];
+} MIB_TCP6TABLE_OWNER_PID, *PMIB_TCP6TABLE_OWNER_PID;
+
+typedef struct _MIB_UDP6ROW_OWNER_PID {
+    UCHAR ucLocalAddr[16];
+    DWORD dwLocalScopeId;
+    DWORD dwLocalPort;
+    DWORD dwOwningPid;
+} MIB_UDP6ROW_OWNER_PID, *PMIB_UDP6ROW_OWNER_PID;
+
+typedef struct _MIB_UDP6TABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_UDP6ROW_OWNER_PID table[ANY_SIZE];
+} MIB_UDP6TABLE_OWNER_PID, *PMIB_UDP6TABLE_OWNER_PID;
+
+#endif
+
 
 static PIP_ADAPTER_ADDRESSES
 psutil_get_nic_addresses(void) {
@@ -185,7 +260,7 @@ psutil_net_if_addrs(PyObject *self, PyObject *args) {
         if (pCurrAddresses->PhysicalAddressLength != 0) {
             ptr = buff_macaddr;
             *ptr = '\0';
-            for (i = 0; i < (int) pCurrAddresses->PhysicalAddressLength; i++) {
+            for (i = 0; i < (int)(unsigned)pCurrAddresses->PhysicalAddressLength; i++) {
                 if (i == (pCurrAddresses->PhysicalAddressLength - 1)) {
                     sprintf_s(ptr, _countof(buff_macaddr), "%.2X\n",
                               (int)pCurrAddresses->PhysicalAddress[i]);
@@ -322,7 +397,7 @@ psutil_net_if_stats(PyObject *self, PyObject *args) {
     int i;
     DWORD dwSize = 0;
     DWORD dwRetVal = 0;
-    MIB_IFTABLE *pIfTable;
+    MIB_IFTABLE *pIfTable = NULL;
     MIB_IFROW *pIfRow;
     PIP_ADAPTER_ADDRESSES pAddresses = NULL;
     PIP_ADAPTER_ADDRESSES pCurrAddresses = NULL;
@@ -372,8 +447,10 @@ psutil_net_if_stats(PyObject *self, PyObject *args) {
         ifname_found = 0;
         pCurrAddresses = pAddresses;
         while (pCurrAddresses) {
-            sprintf_s(descr, MAX_PATH, "%wS", pCurrAddresses->Description);
-            if (lstrcmp(descr, pIfRow->bDescr) == 0) {
+            // Convert wide string to multibyte
+            WideCharToMultiByte(CP_ACP, 0, pCurrAddresses->Description, -1,
+                                descr, MAX_PATH, NULL, NULL);
+            if (lstrcmpA(descr, (LPCSTR)pIfRow->bDescr) == 0) {
                 py_nic_name = PyUnicode_FromWideChar(
                     pCurrAddresses->FriendlyName,
                     wcslen(pCurrAddresses->FriendlyName));
