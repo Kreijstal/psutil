@@ -457,7 +457,7 @@ elif CYGWIN:
     macros.append(("PSUTIL_CYGWIN", 1))
 
     # sys.getwindowsversion() is not available in Cygwin's Python
-    winver_re = re.compile(r'CYGWIN_NT-(?P<major>\d+)\.(?P<minor>\d+)')
+    winver_re = re.compile(r'(CYGWIN|MSYS)_NT-(?P<major>\d+)\.(?P<minor>\d+)')
 
     def get_winver():
         verstr = os.uname()[0]
