@@ -474,15 +474,8 @@ elif CYGWIN:
         # functions like select().  Indeed, the only socket-related code in this
         # module is Windows-specific.
         ('__USE_W32_SOCKETS', None),
-        # Define macros to handle missing Windows functions in Cygwin
-        ('sprintf_s', 'snprintf'),
-        ('strcat_s', 'strncat'),
-        ('strcpy_s', 'strncpy'),
-        ('_countof(x)', 'sizeof(x)/sizeof(x[0])'),
-        ('_tcscmp', 'wcscmp'),
-        ('_stprintf_s', 'swprintf'),
-        ('PyErr_SetExcFromWindowsErrWithFilenameObject', 'PyErr_SetFromErrnoWithFilenameObject'),
-        ('PyErr_SetFromWindowsErr', 'PyErr_SetFromErrno'),
+        # Define a macro to identify Cygwin compilation
+        ('PSUTIL_CYGWIN', 1),
     ]
 
     # The _psutil_cygwin extension takes pieces from the _psutil_windows

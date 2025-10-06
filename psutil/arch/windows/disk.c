@@ -99,11 +99,7 @@ psutil_disk_io_counters(PyObject *self, PyObject *args) {
     // in the alphabet (from A:\ to Z:\).
     for (devNum = 0; devNum <= 32; ++devNum) {
         py_tuple = NULL;
-#ifdef PSUTIL_CYGWIN
-        snprintf(szDevice, MAX_PATH, "\\\\.\\PhysicalDrive%d", devNum);
-#else
         sprintf_s(szDevice, MAX_PATH, "\\\\.\\PhysicalDrive%d", devNum);
-#endif
         hDevice = CreateFile(szDevice, 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
                              NULL, OPEN_EXISTING, 0, NULL);
         if (hDevice == INVALID_HANDLE_VALUE)
@@ -158,15 +154,7 @@ psutil_disk_io_counters(PyObject *self, PyObject *args) {
             goto error;
         }
 
-#ifdef PSUTIL_CYGWIN
-        snprintf(szDeviceDisplay, MAX_PATH, "PhysicalDrive%i", devNum);
-#else
-#ifdef PSUTIL_CYGWIN
-        snprintf(szDeviceDisplay, MAX_PATH, "PhysicalDrive%i", devNum);
-#else
         sprintf_s(szDeviceDisplay, MAX_PATH, "PhysicalDrive%i", devNum);
-#endif
-#endif
         py_tuple = Py_BuildValue(
             "(IILLKK)",
             diskPerformance.ReadCount,
@@ -285,11 +273,7 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
             // which case the error is (21, "device not ready").
             // Let's pretend it didn't happen as we already have
             // the drive name and type ('removable').
-#ifdef PSUTIL_CYGWIN
-            strncat(opts, "", sizeof(opts) - strlen(opts) - 1);
-#else
             strcat_s(opts, _countof(opts), "");
-#endif
             SetLastError(0);
         }
         else {
@@ -300,23 +284,11 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
                 strcat_s(opts, _countof(opts), "ro");
     #endif
             else
-#ifdef PSUTIL_CYGWIN
-                strncat(opts, "rw", sizeof(opts) - strlen(opts) - 1);
-#else
                 strcat_s(opts, _countof(opts), "rw");
-#endif
             if (pflags & FILE_VOLUME_IS_COMPRESSED)
-#ifdef PSUTIL_CYGWIN
-                strncat(opts, ",compressed", sizeof(opts) - strlen(opts) - 1);
-#else
                 strcat_s(opts, _countof(opts), ",compressed");
-#endif
             if (pflags & FILE_READ_ONLY_VOLUME)
-#ifdef PSUTIL_CYGWIN
-                strncat(opts, ",readonly", sizeof(opts) - strlen(opts) - 1);
-#else
                 strcat_s(opts, _countof(opts), ",readonly");
-#endif
 
             // Check for mount points on this volume and add/get info
             // (checks first to know if we can even have mount points)
@@ -327,12 +299,7 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
                     mp_flag = TRUE;
                     while (mp_flag) {
                         // Append full mount path with drive letter
-#ifdef PSUTIL_CYGWIN
-                        strncpy(mp_path, drive_letter, sizeof(mp_path) - 1);
-                        mp_path[sizeof(mp_path) - 1] = '\0';
-#else
                         strcpy_s(mp_path, _countof(mp_path), drive_letter);
-#endif
                         strcat_s(mp_path, _countof(mp_path), mp_buf);
 
                         py_tuple = Py_BuildValue(
@@ -362,16 +329,8 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
         }
 
         if (strlen(opts) > 0)
-#ifdef PSUTIL_CYGWIN
-            strncat(opts, ",", sizeof(opts) - strlen(opts) - 1);
-#else
             strcat_s(opts, _countof(opts), ",");
-#endif
-#ifdef PSUTIL_CYGWIN
-        strncat(opts, psutil_get_drive_type(type), sizeof(opts) - strlen(opts) - 1);
-#else
         strcat_s(opts, _countof(opts), psutil_get_drive_type(type));
-#endif
 
         py_tuple = Py_BuildValue(
             "(ssss)",
@@ -420,13 +379,8 @@ psutil_QueryDosDevice(PyObject *self, PyObject *args) {
         TCHAR szDeviceName[3] = {d, TEXT(':'), TEXT('\0')};
         TCHAR szTarget[512] = {0};
         if (QueryDosDevice(szDeviceName, szTarget, 511) != 0) {
-#ifdef PSUTIL_CYGWIN
-            if (wcscmp(lpDevicePath, szTarget) == 0) {
-                swprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), TEXT("%c:"), d);
-#else
             if (_tcscmp(lpDevicePath, szTarget) == 0) {
                 _stprintf_s(szBuff, _countof(szBuff), TEXT("%c:"), d);
-#endif
                 return Py_BuildValue("s", szBuff);
             }
         }

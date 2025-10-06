@@ -183,22 +183,12 @@ psutil_net_if_addrs(PyObject *self, PyObject *args) {
             *ptr = '\0';
             for (i = 0; i < (int) pCurrAddresses->PhysicalAddressLength; i++) {
                 if (i == (pCurrAddresses->PhysicalAddressLength - 1)) {
-    #ifdef PSUTIL_CYGWIN
-                    snprintf(ptr, sizeof(buff_macaddr) - (ptr - buff_macaddr), "%.2X\n",
-                             (int)pCurrAddresses->PhysicalAddress[i]);
-    #else
                     sprintf_s(ptr, _countof(buff_macaddr), "%.2X\n",
                               (int)pCurrAddresses->PhysicalAddress[i]);
-    #endif
                 }
                 else {
-#ifdef PSUTIL_CYGWIN
-                    snprintf(ptr, sizeof(buff_macaddr) - (ptr - buff_macaddr), "%.2X-",
-                             (int)pCurrAddresses->PhysicalAddress[i]);
-#else
                     sprintf_s(ptr, _countof(buff_macaddr), "%.2X-",
                               (int)pCurrAddresses->PhysicalAddress[i]);
-#endif
                 }
                 ptr += 3;
             }
@@ -378,11 +368,7 @@ psutil_net_if_stats(PyObject *self, PyObject *args) {
         ifname_found = 0;
         pCurrAddresses = pAddresses;
         while (pCurrAddresses) {
-#ifdef PSUTIL_CYGWIN
-            snprintf(descr, MAX_PATH, "%ls", pCurrAddresses->Description);
-#else
             sprintf_s(descr, MAX_PATH, "%wS", pCurrAddresses->Description);
-#endif
             if (lstrcmp(descr, pIfRow->bDescr) == 0) {
                 py_nic_name = PyUnicode_FromWideChar(
                     pCurrAddresses->FriendlyName,
