@@ -158,7 +158,15 @@ psutil_disk_io_counters(PyObject *self, PyObject *args) {
             goto error;
         }
 
+#ifdef PSUTIL_CYGWIN
+        snprintf(szDeviceDisplay, MAX_PATH, "PhysicalDrive%i", devNum);
+#else
+#ifdef PSUTIL_CYGWIN
+        snprintf(szDeviceDisplay, MAX_PATH, "PhysicalDrive%i", devNum);
+#else
         sprintf_s(szDeviceDisplay, MAX_PATH, "PhysicalDrive%i", devNum);
+#endif
+#endif
         py_tuple = Py_BuildValue(
             "(IILLKK)",
             diskPerformance.ReadCount,
@@ -286,13 +294,29 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
         }
         else {
             if (pflags & FILE_READ_ONLY_VOLUME)
+    #ifdef PSUTIL_CYGWIN
+                strncat(opts, "ro", sizeof(opts) - strlen(opts) - 1);
+    #else
                 strcat_s(opts, _countof(opts), "ro");
+    #endif
             else
+#ifdef PSUTIL_CYGWIN
+                strncat(opts, "rw", sizeof(opts) - strlen(opts) - 1);
+#else
                 strcat_s(opts, _countof(opts), "rw");
+#endif
             if (pflags & FILE_VOLUME_IS_COMPRESSED)
+#ifdef PSUTIL_CYGWIN
+                strncat(opts, ",compressed", sizeof(opts) - strlen(opts) - 1);
+#else
                 strcat_s(opts, _countof(opts), ",compressed");
+#endif
             if (pflags & FILE_READ_ONLY_VOLUME)
+#ifdef PSUTIL_CYGWIN
+                strncat(opts, ",readonly", sizeof(opts) - strlen(opts) - 1);
+#else
                 strcat_s(opts, _countof(opts), ",readonly");
+#endif
 
             // Check for mount points on this volume and add/get info
             // (checks first to know if we can even have mount points)
@@ -338,8 +362,16 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
         }
 
         if (strlen(opts) > 0)
+#ifdef PSUTIL_CYGWIN
+            strncat(opts, ",", sizeof(opts) - strlen(opts) - 1);
+#else
             strcat_s(opts, _countof(opts), ",");
+#endif
+#ifdef PSUTIL_CYGWIN
+        strncat(opts, psutil_get_drive_type(type), sizeof(opts) - strlen(opts) - 1);
+#else
         strcat_s(opts, _countof(opts), psutil_get_drive_type(type));
+#endif
 
         py_tuple = Py_BuildValue(
             "(ssss)",
