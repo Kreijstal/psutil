@@ -24,6 +24,10 @@
 typedef DWORD TCP_TABLE_CLASS;
 typedef DWORD UDP_TABLE_CLASS;
 
+#ifndef ANY_SIZE
+#define ANY_SIZE 1
+#endif
+
 // Define the actual table structures if they're missing
 #ifndef MIB_TCPROW_OWNER_PID
 typedef struct _MIB_TCPROW_OWNER_PID {
