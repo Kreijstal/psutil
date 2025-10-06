@@ -14,6 +14,7 @@ sensors) in Python. Supported platforms:
  - NetBSD
  - Sun Solaris
  - AIX
+ - Cygwin (experimental)
 
 Supported Python versions are cPython 3.6+ and PyPy.
 """
@@ -50,6 +51,7 @@ from ._common import CONN_NONE
 from ._common import CONN_SYN_RECV
 from ._common import CONN_SYN_SENT
 from ._common import CONN_TIME_WAIT
+from ._common import CYGWIN
 from ._common import FREEBSD
 from ._common import LINUX
 from ._common import MACOS
@@ -132,6 +134,10 @@ elif AIX:
     # via sys.modules.
     PROCFS_PATH = "/proc"
 
+elif CYGWIN:
+    PROCFS_PATH = "/proc"
+    from . import _pscygwin as _psplatform
+
 else:  # pragma: no cover
     msg = f"platform {sys.platform} is not supported"
     raise NotImplementedError(msg)
@@ -163,7 +169,7 @@ __all__ = [
     "POWER_TIME_UNKNOWN", "POWER_TIME_UNLIMITED",
 
     "BSD", "FREEBSD", "LINUX", "NETBSD", "OPENBSD", "MACOS", "OSX", "POSIX",
-    "SUNOS", "WINDOWS", "AIX",
+    "SUNOS", "WINDOWS", "AIX", "CYGWIN",
 
     # "RLIM_INFINITY", "RLIMIT_AS", "RLIMIT_CORE", "RLIMIT_CPU", "RLIMIT_DATA",
     # "RLIMIT_FSIZE", "RLIMIT_LOCKS", "RLIMIT_MEMLOCK", "RLIMIT_NOFILE",
@@ -599,6 +605,11 @@ class Process:
         if self.pid == lowest_pid:
             return None
         ppid = self.ppid()
+        if CYGWIN:
+            # See note for Process.create_time in _pscygwin.py
+            rounding_error = 1
+        else:
+            rounding_error = 0
         if ppid is not None:
             # Get a fresh (non-cached) ctime in case the system clock
             # was updated. TODO: use a monotonic ctime on platforms
@@ -606,7 +617,7 @@ class Process:
             proc_ctime = Process(self.pid).create_time()
             try:
                 parent = Process(ppid)
-                if parent.create_time() <= proc_ctime:
+                if parent.create_time() <= (proc_ctime + rounding_error):
                     return parent
                 # ...else ppid has been reused by another process
             except NoSuchProcess:
@@ -1469,7 +1480,15 @@ def pids():
     """Return a list of current running PIDs."""
     global _LOWEST_PID
     ret = sorted(_psplatform.pids())
-    _LOWEST_PID = ret[0]
+
+    if CYGWIN:
+        # Note: The _LOWEST_PID concept is not very meaningful since every
+        # "top-level" process has a non-1 PID; they do have PPID of 1 but that
+        # does not correspond to an actual process that shows up in the pids()
+        # list
+        _LOWEST_PID = 1
+    else:
+        _LOWEST_PID = ret[0]
     return ret
 
 

@@ -59,6 +59,7 @@ sys.path.insert(0, os.path.join(HERE, "psutil"))
 
 from _common import AIX  # noqa: E402
 from _common import BSD  # noqa: E402
+from _common import CYGWIN  # noqa: E402
 from _common import FREEBSD  # noqa: E402
 from _common import LINUX  # noqa: E402
 from _common import MACOS  # noqa: E402
@@ -445,6 +446,18 @@ elif AIX:
             'psutil/arch/aix/ifaddrs.c',
         ],
         libraries=['perfstat'],
+        define_macros=macros,
+        # fmt: off
+        # python 2.7 compatibility requires no comma
+        **py_limited_api
+        # fmt: on
+    )
+
+elif CYGWIN:
+    macros.append(("PSUTIL_CYGWIN", 1))
+    ext = Extension(
+        'psutil._psutil_cygwin',
+        sources=sources + ['psutil/_psutil_cygwin.c'],
         define_macros=macros,
         # fmt: off
         # python 2.7 compatibility requires no comma

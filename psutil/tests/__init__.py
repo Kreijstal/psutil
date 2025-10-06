@@ -43,6 +43,7 @@ except ImportError:
 
 import psutil
 from psutil import AIX
+from psutil import CYGWIN
 from psutil import LINUX
 from psutil import MACOS
 from psutil import NETBSD
