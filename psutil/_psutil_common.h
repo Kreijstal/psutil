@@ -13,7 +13,9 @@
 extern int PSUTIL_TESTING;
 extern int PSUTIL_DEBUG;
 // a signaler for connections without an actual status
-static const int PSUTIL_CONN_NONE = 128;
+#ifndef PSUTIL_CONN_NONE
+#define PSUTIL_CONN_NONE 128
+#endif
 
 // strncpy() variant which appends a null terminator.
 #define PSUTIL_STRNCPY(dst, src, n) \
@@ -83,7 +85,10 @@ static const int PSUTIL_CONN_NONE = 128;
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
+#ifndef sprintf_s
 #define sprintf_s(str, n, format, ...) snprintf(str, n, format, ##__VA_ARGS__)
+#endif
+#ifndef strcat_s
 #define strcat_s(dest, n, src) do { \
     size_t dest_len = strlen(dest); \
     if (dest_len < n - 1) { \
@@ -91,13 +96,22 @@ static const int PSUTIL_CONN_NONE = 128;
         dest[n - 1] = '\0'; \
     } \
 } while (0)
+#endif
+#ifndef strcpy_s
 #define strcpy_s(dest, n, src) do { \
     strncpy(dest, src, n - 1); \
     dest[n - 1] = '\0'; \
 } while (0)
+#endif
+#ifndef _countof
 #define _countof(x) (sizeof(x)/sizeof(x[0]))
+#endif
+#ifndef _tcscmp
 #define _tcscmp wcscmp
+#endif
+#ifndef _stprintf_s
 #define _stprintf_s(dest, n, format, ...) swprintf(dest, n, format, ##__VA_ARGS__)
+#endif
 
 #endif // PSUTIL_CYGWIN
 
@@ -163,6 +177,9 @@ PyObject* PyErr_SetFromOSErrnoWithSyscall(const char *syscall);
 // ====================================================================
 
 PyObject* psutil_set_testing(PyObject *self, PyObject *args);
+#ifdef psutil_debug
+#undef psutil_debug
+#endif
 void psutil_debug(const char* format, ...);
 int psutil_setup(void);
 
