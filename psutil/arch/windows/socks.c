@@ -11,10 +11,108 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 
+// Define missing types for Cygwin
+#ifndef MIB_TCP_STATE_DELETE_TCB
+#define MIB_TCP_STATE_DELETE_TCB 12
+#endif
+
+// Define TCP_TABLE_CLASS and UDP_TABLE_CLASS as DWORD for Cygwin
+typedef DWORD TCP_TABLE_CLASS;
+typedef DWORD UDP_TABLE_CLASS;
+
+// Define the actual table structures if they're missing
+#ifndef MIB_TCPROW_OWNER_PID
+typedef struct _MIB_TCPROW_OWNER_PID {
+    DWORD dwState;
+    DWORD dwLocalAddr;
+    DWORD dwLocalPort;
+    DWORD dwRemoteAddr;
+    DWORD dwRemotePort;
+    DWORD dwOwningPid;
+} MIB_TCPROW_OWNER_PID, *PMIB_TCPROW_OWNER_PID;
+#endif
+
+#ifndef MIB_TCPTABLE_OWNER_PID
+typedef struct _MIB_TCPTABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_TCPROW_OWNER_PID table[ANY_SIZE];
+} MIB_TCPTABLE_OWNER_PID, *PMIB_TCPTABLE_OWNER_PID;
+#endif
+
+#ifndef MIB_UDPROW_OWNER_PID
+typedef struct _MIB_UDPROW_OWNER_PID {
+    DWORD dwLocalAddr;
+    DWORD dwLocalPort;
+    DWORD dwOwningPid;
+} MIB_UDPROW_OWNER_PID, *PMIB_UDPROW_OWNER_PID;
+#endif
+
+#ifndef MIB_UDPTABLE_OWNER_PID
+typedef struct _MIB_UDPTABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_UDPROW_OWNER_PID table[ANY_SIZE];
+} MIB_UDPTABLE_OWNER_PID, *PMIB_UDPTABLE_OWNER_PID;
+#endif
+
+#ifndef MIB_TCP6ROW_OWNER_PID
+typedef struct _MIB_TCP6ROW_OWNER_PID {
+    UCHAR ucLocalAddr[16];
+    DWORD dwLocalScopeId;
+    DWORD dwLocalPort;
+    UCHAR ucRemoteAddr[16];
+    DWORD dwRemoteScopeId;
+    DWORD dwRemotePort;
+    DWORD dwState;
+    DWORD dwOwningPid;
+} MIB_TCP6ROW_OWNER_PID, *PMIB_TCP6ROW_OWNER_PID;
+#endif
+
+#ifndef MIB_TCP6TABLE_OWNER_PID
+typedef struct _MIB_TCP6TABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_TCP6ROW_OWNER_PID table[ANY_SIZE];
+} MIB_TCP6TABLE_OWNER_PID, *PMIB_TCP6TABLE_OWNER_PID;
+#endif
+
+#ifndef MIB_UDP6ROW_OWNER_PID
+typedef struct _MIB_UDP6ROW_OWNER_PID {
+    UCHAR ucLocalAddr[16];
+    DWORD dwLocalScopeId;
+    DWORD dwLocalPort;
+    DWORD dwOwningPid;
+} MIB_UDP6ROW_OWNER_PID, *PMIB_UDP6ROW_OWNER_PID;
+#endif
+
+#ifndef MIB_UDP6TABLE_OWNER_PID
+typedef struct _MIB_UDP6TABLE_OWNER_PID {
+    DWORD dwNumEntries;
+    MIB_UDP6ROW_OWNER_PID table[ANY_SIZE];
+} MIB_UDP6TABLE_OWNER_PID, *PMIB_UDP6TABLE_OWNER_PID;
+#endif
+
 #include "../../arch/all/init.h"
 
 // Declare psutil_pid_is_running which is defined in proc_utils.c
 extern int psutil_pid_is_running(DWORD pid);
+
+// Forward declarations for Windows networking functions that might be missing in Cygwin
+DWORD WINAPI GetExtendedTcpTable(
+    PVOID pTcpTable,
+    PDWORD pdwSize,
+    BOOL bOrder,
+    ULONG ulAf,
+    TCP_TABLE_CLASS TableClass,
+    ULONG Reserved
+);
+
+DWORD WINAPI GetExtendedUdpTable(
+    PVOID pUdpTable,
+    PDWORD pdwSize,
+    BOOL bOrder,
+    ULONG ulAf,
+    UDP_TABLE_CLASS TableClass,
+    ULONG Reserved
+);
 
 
 #define BYTESWAP_USHORT(x) ((((USHORT)(x) << 8) | ((USHORT)(x) >> 8)) & 0xffff)
