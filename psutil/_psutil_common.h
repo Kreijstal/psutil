@@ -59,6 +59,12 @@ static const int PSUTIL_CONN_NONE = 128;
     PyErr_SetFromErrnoWithFilename(PyExc_OSError, filename); \
 })
 
+#define PyErr_SetExcFromWindowsErrWithFilenameObject(exc, ierr, filenameObj) ({ \
+    errno = (int) cygwin_internal(CW_GET_ERRNO_FROM_WINERROR, \
+                                  ((ierr) ? (ierr) : GetLastError())); \
+    PyErr_SetFromErrnoWithFilenameObject(exc, filenameObj); \
+})
+
 // Functions and macros from the MSCRT that are missing on Cygwin
 #ifndef _countof
 #define _countof(array) (sizeof(array) / sizeof(array[0]))
