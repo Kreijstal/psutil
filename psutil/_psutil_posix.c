@@ -30,15 +30,6 @@ static PyMethodDef mod_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
-#ifdef PSUTIL_CYGWIN
-// Stub for net_if_addrs on Cygwin
-PyObject*
-psutil_net_if_addrs(PyObject* self, PyObject* args) {
-    PyErr_SetString(PyExc_NotImplementedError, 
-                    "net_if_addrs not implemented for Cygwin in this module");
-    return NULL;
-}
-#endif
 
 
 static struct PyModuleDef moduledef = {

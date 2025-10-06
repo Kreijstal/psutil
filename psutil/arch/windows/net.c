@@ -260,7 +260,7 @@ psutil_net_if_addrs(PyObject *self, PyObject *args) {
         if (pCurrAddresses->PhysicalAddressLength != 0) {
             ptr = buff_macaddr;
             *ptr = '\0';
-            for (i = 0; i < (int)pCurrAddresses->PhysicalAddressLength; i++) {
+            for (i = 0; i < (unsigned int)pCurrAddresses->PhysicalAddressLength; i++) {
                 if (i == (pCurrAddresses->PhysicalAddressLength - 1)) {
                     sprintf_s(ptr, _countof(buff_macaddr), "%.2X\n",
                               (int)pCurrAddresses->PhysicalAddress[i]);
