@@ -6,11 +6,41 @@
 #include <Python.h>
 
 #include <sys/cygwin.h>
+#include <stdarg.h>
 
 #include "_psutil_common.h"
 #include "arch/windows/disk.h"
 #include "arch/windows/net.h"
 #include "arch/windows/socks.h"
+
+// Define PSUTIL_DEBUG
+int PSUTIL_DEBUG = 0;
+
+// Define psutil_debug for Cygwin
+void
+psutil_debug(const char* format, ...) {
+    if (! PSUTIL_DEBUG)
+        return;
+    va_list args;
+    va_start(args, format);
+    fprintf(stderr, "psutil-debug [%s:%d]> ", __FILE__, __LINE__);
+    vfprintf(stderr, format, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+}
+
+// Define psutil_debug for Cygwin
+void
+psutil_debug(const char* format, ...) {
+    if (! PSUTIL_DEBUG)
+        return;
+    va_list args;
+    va_start(args, format);
+    fprintf(stderr, "psutil-debug [%s:%d]> ", __FILE__, __LINE__);
+    vfprintf(stderr, format, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+}
 
 
 /*
