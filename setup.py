@@ -455,10 +455,36 @@ elif AIX:
 
 elif CYGWIN:
     macros.append(("PSUTIL_CYGWIN", 1))
+
+    # sys.getwindowsversion() is not available in Cygwin's Python
+    winver_re = re.compile(r'CYGWIN_NT-(?P<major>\d+)\.(?P<minor>\d+)')
+
+    def get_winver():
+        verstr = os.uname()[0]
+        m = winver_re.search(verstr)
+        maj = int(m.group('major'))
+        min = int(m.group('minor'))
+        return '0x0%s' % ((maj * 100) + min)
+
+    macros.append(("_WIN32_WINNT", get_winver()))
+    # This indicates to Cygwin's headers that we are using Windows sockets and
+    # not BSD sockets for this code, and so not to declare types like fd_set or
+    # functions like select().  Indeed, the only socket-related code in this
+    # module is Windows-specific.
+    macros.append(('__USE_W32_SOCKETS', None))
+
+    # The _psutil_cygwin extension takes pieces from the _psutil_windows
+    # extension, but does not need the full module
     ext = Extension(
         'psutil._psutil_cygwin',
-        sources=sources + ['psutil/_psutil_cygwin.c'],
+        sources=sources + [
+            'psutil/_psutil_cygwin.c',
+            'psutil/arch/windows/disk.c',
+            'psutil/arch/windows/net.c',
+            'psutil/arch/windows/proc_utils.c',
+            'psutil/arch/windows/socks.c'],
         define_macros=macros,
+        libraries=['iphlpapi', 'ntdll'],
         # fmt: off
         # python 2.7 compatibility requires no comma
         **py_limited_api
