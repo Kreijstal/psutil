@@ -47,23 +47,23 @@ static const int PSUTIL_CONN_NONE = 128;
  * API to provide the mapping. */
 #include <sys/cygwin.h>
 #include <sys/errno.h>
-#define PyErr_SetFromWindowsErr(ierr) ({ \
+#define PyErr_SetFromWindowsErr(ierr) do { \
     errno = (int) cygwin_internal(CW_GET_ERRNO_FROM_WINERROR, \
                                   ((ierr) ? (ierr) : GetLastError())); \
     PyErr_SetFromErrno(PyExc_OSError); \
-})
+} while (0)
 
-#define PyErr_SetFromWindowsErrWithFilename(ierr, filename) ({ \
+#define PyErr_SetFromWindowsErrWithFilename(ierr, filename) do { \
     errno = (int) cygwin_internal(CW_GET_ERRNO_FROM_WINERROR, \
                                   ((ierr) ? (ierr) : GetLastError())); \
     PyErr_SetFromErrnoWithFilename(PyExc_OSError, filename); \
-})
+} while (0)
 
-#define PyErr_SetExcFromWindowsErrWithFilenameObject(exc, ierr, filenameObj) ({ \
+#define PyErr_SetExcFromWindowsErrWithFilenameObject(exc, ierr, filenameObj) do { \
     errno = (int) cygwin_internal(CW_GET_ERRNO_FROM_WINERROR, \
                                   ((ierr) ? (ierr) : GetLastError())); \
     PyErr_SetFromErrnoWithFilenameObject(exc, filenameObj); \
-})
+} while (0)
 
 // Functions and macros from the MSCRT that are missing on Cygwin
 #ifndef _countof
@@ -82,12 +82,22 @@ static const int PSUTIL_CONN_NONE = 128;
 // On Cygwin, use standard C functions
 #include <stdio.h>
 #include <string.h>
+#include <wchar.h>
 #define sprintf_s(str, n, format, ...) snprintf(str, n, format, ##__VA_ARGS__)
-#define strcat_s(dest, n, src) strncat(dest, src, n - strlen(dest) - 1)
-#define strcpy_s(dest, n, src) strncpy(dest, src, n - 1); dest[n - 1] = '\0'
+#define strcat_s(dest, n, src) do { \
+    size_t dest_len = strlen(dest); \
+    if (dest_len < n - 1) { \
+        strncat(dest, src, n - dest_len - 1); \
+        dest[n - 1] = '\0'; \
+    } \
+} while (0)
+#define strcpy_s(dest, n, src) do { \
+    strncpy(dest, src, n - 1); \
+    dest[n - 1] = '\0'; \
+} while (0)
 #define _countof(x) (sizeof(x)/sizeof(x[0]))
 #define _tcscmp wcscmp
-#define _stprintf_s swprintf
+#define _stprintf_s(dest, n, format, ...) swprintf(dest, n, format, ##__VA_ARGS__)
 
 #endif // PSUTIL_CYGWIN
 

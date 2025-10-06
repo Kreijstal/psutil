@@ -9,6 +9,7 @@
 #include <tchar.h>
 
 #include "../../arch/all/init.h"
+#include "../../_psutil_common.h"
 
 
 #ifndef _ARRAYSIZE
@@ -230,7 +231,11 @@ psutil_disk_partitions(PyObject *self, PyObject *args) {
     Py_END_ALLOW_THREADS
 
     if (num_bytes == 0) {
+#ifdef PSUTIL_CYGWIN
+        PyErr_SetFromErrno(PyExc_OSError);
+#else
         PyErr_SetFromWindowsErr(0);
+#endif
         goto error;
     }
 

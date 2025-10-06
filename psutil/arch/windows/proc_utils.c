@@ -11,6 +11,7 @@
 #include <Psapi.h>  // EnumProcesses
 
 #include "../../arch/all/init.h"
+#include "../../_psutil_common.h"
 
 
 DWORD *
